@@ -1,20 +1,15 @@
-# Guía de Referencia: Prueba de Wilcoxon de Rangos con Signo
+# Guía de Referencia: Prueba de Wilcoxon de Rangos con Signo (Una Muestra)
 
 ## ¿Qué es?
 
-La prueba de Wilcoxon de rangos con signo es una prueba **no paramétrica** que compara las **medianas** para determinar si hay una diferencia significativa. Tiene dos variantes:
+La prueba de Wilcoxon de rangos con signo para una muestra es una prueba **no paramétrica** que compara la **mediana** de una muestra contra un **valor de referencia conocido**.
 
-1. **Una muestra** — compara una muestra contra un valor de referencia conocido
-2. **Pareada** — compara dos muestras que están emparejadas (el mismo individuo medido dos veces)
-
-**Pregunta central:**
-- Una muestra: ¿la mediana de mis datos es igual a un valor conocido?
-- Pareada: ¿la mediana de las diferencias entre ambos grupos es cero?
+**Pregunta central:** ¿la mediana de mis datos es igual a un valor conocido (por ejemplo, 200ms)?
 
 **Qué NO hace:**
 - No compara medias (usa rangos de las diferencias)
 - No asume normalidad
-- No funciona con muestras independientes (para eso está Mann-Whitney)
+- No compara dos grupos (para eso está Mann-Whitney o Wilcoxon pareado)
 
 ---
 
@@ -24,25 +19,28 @@ La prueba de Wilcoxon de rangos con signo es una prueba **no paramétrica** que 
 
 | Situación | Herramienta |
 |---|---|
-| Un grupo contra un valor fijo, datos normales | t-test una muestra |
-| Un grupo contra un valor fijo, datos NO normales | **Wilcoxon una muestra** |
-| Dos grupos emparejados, datos normales | t-test pareado |
-| Dos grupos emparejados, datos NO normales | **Wilcoxon pareado** |
-| Dos grupos independientes, datos NO normales | Mann-Whitney U |
+| Un grupo vs. valor fijo, datos **normales** | t-test una muestra |
+| Un grupo vs. valor fijo, datos **NO normales** | **Wilcoxon una muestra** |
+| Dos grupos emparejados | Wilcoxon pareado |
+| Dos grupos independientes | Mann-Whitney U |
 
 ### Condiciones ideales
 
 1. **Datos ordinales o continuos** — la prueba trabaja con rangos
-2. **Diferencias simétricas** — las diferencias entre pares (o entre datos y referencia) deben ser aproximadamente simétricas
-3. **Independencia dentro de cada grupo** — los datos dentro de cada muestra son independientes entre sí (aunque los dos grupos están emparejados)
+2. **Diferencias simétricas** — las diferencias entre los datos y el valor de referencia deben ser aproximadamente simétricas
+3. **Independencia** — los datos dentro de la muestra son independientes entre sí
 
-### Diferencia clave con Mann-Whitney
+### Cómo funciona
 
-| | Wilcoxon | Mann-Whitney |
-|---|---|---|
-| Tipo de datos | **Emparejados** o un grupo vs. valor fijo | **Independientes** |
-| Qué compara | Diferencias dentro de pares | Rangos entre grupos distintos |
-| Ejemplo | Antes/después en el mismo usuario | Usuario A vs. usuario B |
+No compara los datos directamente contra el valor de referencia. Calcula las **diferencias** y testea si esas diferencias son simétricas alrededor de cero:
+
+```python
+datos = [190, 210, 185, 205, 195]
+referencia = 200
+
+diferencias = datos - referencia  # [-10, 10, -15, 5, -5]
+# Wilcoxon testea si estas diferencias son simétricas alrededor de 0
+```
 
 ---
 
@@ -50,53 +48,46 @@ La prueba de Wilcoxon de rangos con signo es una prueba **no paramétrica** que 
 
 ### 1. Exploración de datos (EDA)
 
-**Ejemplo 1: Comparar una métrica contra un benchmark**
+**Ejemplo 1: Comparar latencia de un modelo contra un benchmark**
 
 > Tu modelo actual tiene una latencia mediana de 200ms. ¿El nuevo modelo es más rápido?
 
 ```python
 from scipy.stats import wilcoxon
 
-# Datos de latencia del nuevo modelo
 latencia_nueva = [185, 192, 178, 200, 195, ...]
 
-# Valor de referencia: 200ms
 W, p = wilcoxon(latencia_nueva - 200, alternative='less')
-
 # p < 0.05 → el nuevo modelo es estadísticamente más rápido
 ```
 
-**Ejemplo 2: Verificar si una columna tiene distribución simétrica**
-
-> Querés saber si la columna `tiempo_respuesta` es simétrica alrededor de su mediana. Si lo es, las diferencias contra la mediana deberían ser balanceadas.
-
-```python
-mediana = df['tiempo_respuesta'].median()
-W, p = wilcoxon(df['tiempo_respuesta'] - mediana, alternative='two-sided')
-
-# p > 0.05 → no se rechaza simetría (buena señal)
-# p < 0.05 → la distribución es asimétrica
-```
-
-**Ejemplo 3: Comparar dos mediciones del mismo sensor**
-
-> Tenés un sensor de temperatura medido cada hora. ¿La lectura de la mañana difiere de la de la tarde en los mismos días?
-
-```python
-W, p = wilcoxon(
-    lecturas_manana - lecturas_tarde,
-    alternative='two-sided'
-)
-# p < 0.05 → hay diferencia sistemática entre mañana y tarde
-```
-
-**Ejemplo 4: Validar si una métrica está dentro de un rango aceptable**
+**Ejemplo 2: Verificar si una métrica cumple un SLA**
 
 > Tu SLA dice que el tiempo de respuesta debe ser ≤ 150ms. ¿Los datos cumplen?
 
 ```python
 W, p = wilcoxon(tiempos_respuesta - 150, alternative='greater')
-# Si p < 0.05 → los tiempos son significativamente mayores a 150ms (no cumple SLA)
+# p < 0.05 → los tiempos son significativamente mayores a 150ms (no cumple)
+```
+
+**Ejemplo 3: Comparar contra un valor histórico**
+
+> El año pasado el tiempo promedio de entrega era de 48 horas. ¿Este año mejoró?
+
+```python
+W, p = wilcoxon(tiempos_entrega_este_año - 48, alternative='less')
+# p < 0.05 → los tiempos este año son menores
+```
+
+**Ejemplo 4: Validar si una distribución es simétrica**
+
+> Querés saber si `tiempo_respuesta` es simétrica alrededor de su mediana.
+
+```python
+mediana = df['tiempo_respuesta'].median()
+W, p = wilcoxon(df['tiempo_respuesta'] - mediana, alternative='two-sided')
+# p > 0.05 → no se rechaza simetría (buena señal)
+# p < 0.05 → la distribución es asimétrica
 ```
 
 ---
@@ -122,9 +113,8 @@ W, p = wilcoxon(
 > Imputaste los valores faltantes de `edad` con la mediana. ¿La distribución imputada es consistente?
 
 ```python
-# Comparar la distribución original (sin nulos) contra la imputada
 W, p = wilcoxon(
-    datos_originales['edad'].dropna() - datos_imputados['edad'].median(),
+    datos_imputados['edad'] - datos_originales['edad'].median(),
     alternative='two-sided'
 )
 ```
@@ -151,51 +141,33 @@ W, p = wilcoxon(
 > ¿El tiempo de sesión de los usuarios que compran es mayor que 120 segundos?
 
 ```python
-W, p = wilcoxon(
-    tiempos_sesion_compradores - 120,
-    alternative='greater'
-)
+W, p = wilcoxon(tiempos_sesion_compradores - 120, alternative='greater')
 # p < 0.05 → los compradores pasan más de 120 segundos
 ```
 
-**Ejemplo 9: Comparar dos features candidatas**
+**Ejemplo 9: Verificar si una feature está dentro de un rango esperado**
 
-> Tenés `ingreso` y `gasto_mensual`. ¿Sus medianas son significativamente distintas?
+> La variable `edad` debería tener una mediana de 35 años en tu dataset.
 
 ```python
-# Esto solo funciona si ambas variables están en la misma escala
-W, p = wilcoxon(df['ingreso'] - df['gasto_mensual'], alternative='two-sided')
+W, p = wilcoxon(df['edad'] - 35, alternative='two-sided')
+# p > 0.05 → la mediana es consistente con lo esperado
 ```
 
-**Ejemplo 10: Evaluar estabilidad de una feature entre folds de cross-validation**
+**Ejemplo 10: Evaluar estabilidad de una feature entre lotes**
 
-> En cada fold, la mediana de `antigüedad` debería ser similar. ¿Lo es?
+> La mediana de `gasto_promedio` debería ser estable entre meses.
 
 ```python
-# Supongamos que tenés las medianas de cada fold
-fold_medians = [mediana_fold_1, mediana_fold_2, mediana_fold_3, ...]
-W, p = wilcoxon(fold_medians - np.median(fold_medians), alternative='two-sided')
-# p > 0.05 → la feature es estable entre folds
+W, p = wilcoxon(gasto_enero - gasto_febrero.median(), alternative='two-sided')
+# p > 0.05 → la feature es estable
 ```
 
 ---
 
 ### 4. Selección de modelos
 
-**Ejemplo 11: Comparar errores de dos modelos en el mismo test set**
-
-> ¿El modelo A tiene errores menores que el modelo B en las mismas observaciones?
-
-```python
-# Errores absolutos de ambos modelos en el mismo test set
-W, p = wilcoxon(
-    abs(errores_modelo_A) - abs(errores_modelo_B),
-    alternative='less'
-)
-# p < 0.05 → modelo A tiene errores significativamente menores
-```
-
-**Ejemplo 12: Validar si un modelo es mejor que un baseline aleatorio**
+**Ejemplo 11: Validar si un modelo es mejor que un baseline aleatorio**
 
 > ¿Tu modelo predice mejor que simplemente predecir la mediana?
 
@@ -207,13 +179,23 @@ W, p = wilcoxon(errores_modelo - errores_baseline, alternative='less')
 # p < 0.05 → tu modelo es mejor que el baseline
 ```
 
-**Ejemplo 13: Comparar AUC de dos modelos en cross-validation**
+**Ejemplo 12: Comparar errores contra un umbral aceptable**
 
-> Tenés los AUC de 10 folds para dos modelos. ¿Son significativamente distintos?
+> ¿El error MAE de tu modelo es menor a 10?
 
 ```python
-W, p = wilcoxon(aucs_modelo_A - aucs_modelo_B, alternative='two-sided')
-# p < 0.05 → hay diferencia significativa entre modelos
+W, p = wilcoxon(errores_mae - 10, alternative='less')
+# p < 0.05 → los errores son significativamente menores a 10
+```
+
+**Ejemplo 13: Validar que las predicciones no tienen sesgo sistemático**
+
+> ¿Los residuos de tu modelo son simétricos alrededor de cero?
+
+```python
+W, p = wilcoxon(residuos, alternative='two-sided')
+# p > 0.05 → los residuos son simétricos (bueno)
+# p < 0.05 → hay sesgo sistemático (problema)
 ```
 
 ---
@@ -225,10 +207,9 @@ W, p = wilcoxon(aucs_modelo_A - aucs_modelo_B, alternative='two-sided')
 > Optimizaste una query de base de datos. ¿Los tiempos de respuesta mejoraron?
 
 ```python
-# Medir la misma query 50 veces antes y después
 W, p = wilcoxon(
-    tiempos_antes - tiempos_después,
-    alternative='greater'
+    tiempos_después - tiempos_antes.median(),
+    alternative='less'
 )
 # p < 0.05 → la optimización redujo los tiempos
 ```
@@ -239,11 +220,10 @@ W, p = wilcoxon(
 
 ```python
 W, p = wilcoxon(
-    errores_viejo - errores_nuevo,
+    errores_nuevos - errores_viejos.median(),
     alternative='two-sided'
 )
 # p < 0.05 → el reentrenamiento cambió la performance
-# Si p < 0.05 Y errores_nuevo < errores_viejo → mejoró
 ```
 
 **Ejemplo 16: Validar que un cambio de configuración no empeoró nada**
@@ -252,7 +232,7 @@ W, p = wilcoxon(
 
 ```python
 W, p = wilcoxon(
-    f1_scores_threshold_05 - f1_scores_threshold_04,
+    f1_scores_threshold_04 - f1_scores_threshold_05.median(),
     alternative='two-sided'
 )
 # p > 0.05 → no hay diferencia significativa (el cambio es seguro)
@@ -260,83 +240,39 @@ W, p = wilcoxon(
 
 ---
 
-### 6. A/B Testing con datos pareados
+### 6. Monitoreo y detección de anomalías
 
-**Ejemplo 17: Comparar dos versiones de un modelo en los mismos usuarios**
+**Ejemplo 17: Detectar data drift en una feature**
 
-> ¿La versión nueva del modelo genera predicciones más precisas que la vieja en los mismos usuarios?
-
-```python
-W, p = wilcoxon(
-    errores.modelo_vieja - errores.modelo_nueva,
-    alternative='greater'
-)
-# p < 0.05 → la versión nueva es más precisa
-```
-
-**Ejemplo 18: Evaluar dos estrategias de email marketing**
-
-> Enviaste email A la semana pasada y email B esta semana a los mismos usuarios. ¿La tasa de apertura cambió?
-
-```python
-# Nota: esto solo funciona si cada usuario recibió ambos emails
-W, p = wilcoxon(
-    aperturas_email_A - aperturas_email_B,
-    alternative='two-sided'
-)
-```
-
-**Ejemplo 19: Comparar dos interfaces en el mismo dispositivo**
-
-> Probaste dos diseños de UI en los mismos 30 dispositivos. ¿El tiempo de carga difiere?
+> Comparás la distribución de `latencia` de hoy contra la mediana de la semana pasada.
 
 ```python
 W, p = wilcoxon(
-    tiempos_ui_A - tiempos_ui_B,
-    alternative='two-sided'
-)
-```
-
----
-
-### 7. Monitoreo y detección de anomalías
-
-**Ejemplo 20: Detectar data drift en una feature emparejada**
-
-> Comparás la distribución de `latencia` entre la misma hora de la semana pasada y esta semana.
-
-```python
-# Latencia a las 10am de cada lunes
-latencia_semana_pasada = [...]
-latencia_esta_semana = [...]
-
-W, p = wilcoxon(
-    latencia_semana_pasada - latencia_esta_semana,
+    latencia_hoy - latencia_semana_pasada.median(),
     alternative='two-sided'
 )
 # p < 0.05 → la latencia cambió (posible drift)
 ```
 
-**Ejemplo 21: Validar estabilidad de un modelo entre lotes**
+**Ejemplo 18: Validar estabilidad de un modelo en producción**
 
-> ¿Las predicciones del modelo en el lote de enero son consistentes con las de febrero (mismo conjunto de clientes)?
+> ¿Las predicciones del modelo de hoy son consistentes con las del mes pasado?
 
 ```python
 W, p = wilcoxon(
-    predicciones_enero - predicciones_febrero,
+    predicciones_hoy - predicciones_mes_pasado.median(),
     alternative='two-sided'
 )
 # p > 0.05 → el modelo es estable
 ```
 
-**Ejemplo 22: Detectar degradación de servicio**
+**Ejemplo 19: Detectar degradación de servicio**
 
 > ¿El tiempo de respuesta del API aumentó respecto a la semana pasada?
 
 ```python
-# Tiempos de respuesta de los mismos endpoints
 W, p = wilcoxon(
-    tiempos_semana_pasada - tiempos_esta_semana,
+    tiempos_hoy - tiempos_semana_pasada.median(),
     alternative='greater'
 )
 # p < 0.05 → los tiempos empeoraron (degradación)
@@ -344,9 +280,9 @@ W, p = wilcoxon(
 
 ---
 
-### 8. Validación de supuestos
+### 7. Validación de supuestos
 
-**Ejemplo 23: Verificar normalidad de residuos**
+**Ejemplo 20: Verificar normalidad de residuos**
 
 > En un modelo lineal, ¿los residuos son simétricos alrededor de cero?
 
@@ -356,16 +292,25 @@ W, p = wilcoxon(residuos, alternative='two-sided')
 # p < 0.05 → los residuos son asimétricos (problema)
 ```
 
-**Ejemplo 24: Comparar distribución predicha vs. real**
+**Ejemplo 21: Comparar distribución predicha vs. real**
 
 > ¿La distribución de las predicciones es consistente con la distribución real?
 
 ```python
 W, p = wilcoxon(
-    y_predicho - y_real,
+    y_predicho - y_real.median(),
     alternative='two-sided'
 )
 # p > 0.05 → no hay diferencia sistemática (bueno)
+```
+
+**Ejemplo 22: Validar que una muestra es representativa**
+
+> La mediana de tu muestra debería ser similar a la mediana poblacional conocida.
+
+```python
+W, p = wilcoxon(muestra - mediana_poblacional, alternative='two-sided')
+# p > 0.05 → la muestra es representativa
 ```
 
 ---
@@ -386,7 +331,7 @@ W, p = wilcoxon(
 | **W-val** | Misma estadística W |
 | **p-val** | p-valor |
 | **RBC** | Tamaño del efecto (rank-biserial correlation). Rango: -1 a 1 |
-| **CLES** | Probabilidad de que un valor al azar de un grupo sea mayor que uno del otro |
+| **CLES** | Probabilidad de que un valor al azar sea mayor que el valor de referencia |
 
 ### Reglas de decisión para p-valor
 
@@ -441,7 +386,7 @@ nttest = analisis.solve_power(
     effect_size=d_cohen,
     power=potencia,
     alpha=alpha,
-    alternative='smaller'  # unilateral: menor que
+    alternative='smaller'
 )
 
 # 3. Ajustar para Wilcoxon
@@ -454,7 +399,7 @@ print(f"Se necesitan al menos {n_wilcoxon} muestras")
 ```python
 from pingouin import power_ttest
 
-n = 85  # Tamaño de muestra real
+n = len(datos)
 rbc = -0.3138  # Obtenido de la prueba
 
 d_obs = abs((2 * rbc) / math.sqrt(1 - rbc**2))
@@ -466,7 +411,7 @@ power = power_ttest(
     contrast='one-sample',
     alternative='less'
 )
-print(f"Potencia post-hoc: {power:.4f}")
+print(f"Potencia: {power:.4f}")
 # Si power > 0.8 → la muestra fue suficiente
 # Si power < 0.8 → un resultado no significativo no es conclusivo
 ```
@@ -475,36 +420,25 @@ print(f"Potencia post-hoc: {power:.4f}")
 
 ## Errores comunes
 
-### 1. Usar Wilcoxon cuando los datos son independientes
+### 1. No pasar las diferencias
 
 ```python
-# MAL: dos grupos de usuarios distintos
-wilcoxon(grupo_A, grupo_B)  # ❌
-
-# BIEN: usar Mann-Whitney
-from pingouin import mwu
-mwu(x=grupo_A, y=grupo_B)  # ✅
-```
-
-### 2. Pasar los datos crudos en lugar de las diferencias
-
-```python
-# MAL: pasar los datos directamente contra el valor de referencia
+# MAL: pasar los datos directamente
 wilcoxon(datos, alternative='less')  # ❌ Esto compara contra 0
 
 # BIEN: pasar la diferencia contra el valor de referencia
 wilcoxon(datos - 200, alternative='less')  # ✅
 ```
 
-### 3. Concluir sobre la media
+### 2. Concluir sobre la media
 
 ```python
 # MAL: "la media disminuyó de 200 a 196.5"
-# BIEN: "la distribución de los tiempos se desplazó hacia abajo"
-#        "la mediana pasó de 200ms a 196.5ms"
+# BIEN: "la mediana pasó de 200ms a 196.5ms"
+#        "la distribución de los tiempos se desplazó hacia abajo"
 ```
 
-### 4. Ignorar el tamaño del efecto
+### 3. Ignorar el tamaño del efecto
 
 ```python
 # Resultado: p = 0.001, RBC = 0.05
@@ -512,9 +446,34 @@ wilcoxon(datos - 200, alternative='less')  # ✅
 # BIEN: "hay una diferencia estadísticamente significativa pero con efecto muy pequeño"
 ```
 
-### 5. Olvidar que la prueba es sobre diferencias
+### 4. No verificar la asunción de simetría
 
-Wilcoxon no compara las muestras directamente. Calcula las **diferencias** entre cada par (o contra el valor de referencia) y testea si esas diferencias son simétricas alrededor de cero.
+Aunque Wilcoxon no asume normalidad, sí asume que las diferencias son **aproximadamente simétricas**.
+
+```python
+import seaborn as sns
+
+diferencias = datos - referencia
+sns.histplot(diferencias)
+plt.axvline(0, color='red', linestyle='--')
+plt.title("Distribución de diferencias (debe ser aproximadamente simétrica)")
+plt.show()
+```
+
+### 5. Usar con muestras independientes
+
+```python
+# MAL: dos grupos de usuarios distintos
+wilcoxon(grupo_A - grupo_B)  # ❌ No tiene sentido, no están emparejados
+
+# BIEN: usar Mann-Whitney
+from pingouin import mwu
+mwu(x=grupo_A, y=grupo_B)  # ✅
+```
+
+### 6. Olvidar que la prueba es sobre diferencias
+
+Wilcoxon no compara los datos contra el valor de referencia directamente. Calcula las **diferencias** y testea si son simétricas alrededor de cero.
 
 ```python
 # Ejemplo conceptual
@@ -522,47 +481,15 @@ datos = [190, 210, 185, 205, 195]
 referencia = 200
 
 diferencias = datos - referencia  # [-10, 10, -15, 5, -5]
-# Wilcoxon testea si estas diferencias son simétricas alrededor de 0
-```
-
-### 6. No verificar la asunción de simetría
-
-Aunque Wilcoxon no asume normalidad, sí asume que las diferencias son **aproximadamente simétricas**. Si las diferencias son muy asimétricas, el resultado puede ser engañoso.
-
-```python
-# Verificar simetría visualmente
-import seaborn as sns
-sns.histplot(diferencias)
-plt.axvline(0, color='red', linestyle='--')
-plt.title("Distribución de diferencias (debe ser aproximadamente simétrica)")
-plt.show()
-```
-
----
-
-## Resumen: ¿cuándo usar cada prueba?
-
-```
-¿Tenés dos grupos de datos?
-│
-├── ¿Son emparejados (mismo individuo medido dos veces)?
-│   ├── ¿Son normales? → t-test pareado
-│   └── ¿NO son normales? → Wilcoxon pareado
-│
-├── ¿Son independientes (distintos individuos)?
-│   ├── ¿Son normales? → t-test independiente
-│   └── ¿NO son normales? → Mann-Whitney U
-│
-└── ¿Es un grupo contra un valor fijo?
-    ├── ¿Es normal? → t-test una muestra
-    └── ¿NO es normal? → Wilcoxon una muestra
+# Los rangos se calculan sobre el valor ABSOLUTO de estas diferencias
+# Los signos indican si cada dato está por encima o por debajo de la referencia
 ```
 
 ---
 
 ## Código rápido de referencia
 
-### Wilcoxon una muestra (vs. valor de referencia)
+### Con Scipy
 
 ```python
 from scipy.stats import wilcoxon
@@ -577,23 +504,6 @@ W, p = wilcoxon(datos - valor_referencia, alternative='greater')
 
 # Bilateral: ¿la mediana es DIFERENTE de 200?
 W, p = wilcoxon(datos - valor_referencia, alternative='two-sided')
-
-print(f"W: {W}, p: {p}")
-```
-
-### Wilcoxon pareado (dos muestras emparejadas)
-
-```python
-from scipy.stats import wilcoxon
-
-# Unilateral: ¿antes > después? (¿mejoró?)
-W, p = wilcoxon(antes - después, alternative='greater')
-
-# Unilateral: ¿antes < después? (¿empeoró?)
-W, p = wilcoxon(antes - después, alternative='less')
-
-# Bilateral: ¿hay diferencia?
-W, p = wilcoxon(antes - después, alternative='two-sided')
 
 print(f"W: {W}, p: {p}")
 ```
