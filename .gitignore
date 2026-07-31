@@ -1,0 +1,6 @@
+# Archivos de configuración de Atlassian SourceTree
+.atl/
+
+
+# Entorno virtual
+.venv/
