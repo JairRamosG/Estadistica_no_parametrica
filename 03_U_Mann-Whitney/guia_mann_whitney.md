@@ -176,12 +176,16 @@ mwu(
 > ¿Los valores de `antigüedad` son distintos entre los clientes que cancelan y los que no?
 
 ```python
+# H₀: la antigüedad de los que NO cancelan ≤ la de los que SÍ cancelan
+# H₁: la antigüedad de los que NO cancelan > la de los que SÍ cancelan
+
 mwu(
-    x=df[df['canceló'] == 0]['antigüedad'],
-    y=df[df['canceló'] == 1]['antigüedad'],
-    alternative='greater'
+    x=df[df['canceló'] == 0]['antigüedad'],  # Grupo A: los que NO cancelaron
+    y=df[df['canceló'] == 1]['antigüedad'],  # Grupo B: los que SÍ cancelaron
+    alternative='greater'  # ¿x > y?
 )
-# p < 0.05 → la antigüedad importa (los que cancelan son menos antiguos)
+# p < 0.05 → rechazar H₀ → los que no cancelan tienen mayor antigüedad
+# Esta variable es candidata a feature en tu modelo
 ```
 
 ---
