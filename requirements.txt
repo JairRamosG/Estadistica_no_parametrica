@@ -5,3 +5,4 @@ statsmodels>=0.14
 seaborn>=0.12
 pingouin>=0.5
 matplotlib>=3.7
+scikit-posthocs>=0.14.0
