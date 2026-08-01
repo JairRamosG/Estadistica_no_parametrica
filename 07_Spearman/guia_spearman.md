@@ -432,20 +432,20 @@ print(f"Correlación de Spearman: ρ = {rho:.3f}, IC95% = [{ci_low:.3f}, {ci_hig
 
 ```python
 # MAL: datos con outliers, usando Pearson
-r, p = stats.pearsonr(datos['ingreso'], datos['gasto'])  # ❌ Outliers distorsionan
+r, p = stats.pearsonr(datos['ingreso'], datos['gasto'])  #  Outliers distorsionan
 
 # BIEN: Spearman es resistente a outliers
-rho, p = stats.spearmanr(datos['ingreso'], datos['gasto'])  # ✅
+rho, p = stats.spearmanr(datos['ingreso'], datos['gasto'])  # Bien
 ```
 
 ### 2. Usar Spearman en relación puramente lineal sin outliers
 
 ```python
 # MAL: Spearman cuando Pearson tiene más potencia
-rho, p = stats.spearmanr(datos['x_lineal'], datos['y_lineal'])  # ❌ Pierde potencia
+rho, p = stats.spearmanr(datos['x_lineal'], datos['y_lineal'])  # Pierde potencia
 
 # BIEN: Pearson para relaciones lineales claras
-r, p = stats.pearsonr(datos['x_lineal'], datos['y_lineal'])  # ✅ Mayor potencia
+r, p = stats.pearsonr(datos['x_lineal'], datos['y_lineal'])  # Mayor potencia
 ```
 
 ### 3. Concluir causalidad
